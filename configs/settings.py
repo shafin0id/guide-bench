@@ -68,8 +68,8 @@ class BenchSettings(BaseModel):
         description="List of target framework adapter names in benchmark matrix"
     )
     suites: List[str] = Field(
-        default=["enterprise", "injecagent", "gaia", "toolbench", "hotpotqa", "swebench"],
-        description="Active benchmark suites to evaluate"
+        default=["enterprise", "injecagent", "gaia", "toolbench", "hotpotqa", "swebench", "arm_perturbation"],
+        description="Active benchmark suites to evaluate (enterprise, injecagent, gaia, toolbench, hotpotqa, swebench, arm_perturbation)"
     )
     arm_perturbation: bool = Field(
         default=False,

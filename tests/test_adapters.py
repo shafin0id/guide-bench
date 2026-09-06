@@ -90,7 +90,12 @@ class TestAdapters:
         Validates that all framework adapters execute across the new benchmark
         evaluation dimensions: ToolBench, HotpotQA, SWE-bench Lite, and Arm Perturbation.
         """
-        test_task_ids = ["TOOL01", "HOTPOT01", "SWE01", "ARM01"]
+        test_task_ids = [
+            "TOOL01", "TOOL06", "TOOL10",
+            "HOTPOT01", "HOTPOT03", "HOTPOT05",
+            "SWE01", "SWE02", "SWE05",
+            "ARM01", "ARM02"
+        ]
         frameworks = ["guide", "crewai", "langgraph", "autogen"]
 
         for tid in test_task_ids:
@@ -106,3 +111,16 @@ class TestAdapters:
                 assert result.wall_clock_seconds >= 0.0
                 assert result.total_tokens > 0
                 assert isinstance(result.parsed_output, dict)
+
+    def test_all_frameworks_toolbench_suite_execution(self, mock_settings):
+        """Validates that all frameworks can run a ToolBench task with toolbench_suite allowed."""
+        task = get_task_by_id("TOOL07")
+        assert task is not None
+        assert "toolbench_suite" in task.allowed_tools
+
+        for fw in ["guide", "crewai", "langgraph", "autogen"]:
+            adapter = get_adapter(fw, settings=mock_settings)
+            res = adapter.run_task(task, repetition=1)
+            assert res.success is True
+            assert res.policy_violations == 0
+            assert res.parsed_output.get("carrier") == "United Airlines"

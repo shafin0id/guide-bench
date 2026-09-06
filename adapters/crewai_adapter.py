@@ -100,6 +100,8 @@ class CrewAIAdapter(BaseFrameworkAdapter):
                     )
                     if isinstance(tool_res, dict):
                         accumulated_context.update(tool_res)
+                        if "data" in tool_res and isinstance(tool_res["data"], dict):
+                            accumulated_context.update(tool_res["data"])
                         if "target_fact" in tool_res and isinstance(tool_res["target_fact"], dict):
                             accumulated_context.update(tool_res["target_fact"])
                     if "records" in tool_res and tool_res["records"]:

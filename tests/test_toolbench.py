@@ -225,3 +225,47 @@ class TestToolBench:
         assert res_wiki.success is True
         assert res_wiki.policy_violations == 0
         assert res_wiki.parsed_output.get("pageid") == 12345
+
+    def test_toolbench_suite_execution_across_all_ten_schemas(self, registry):
+        """
+        Validates that MockToolBenchSuite correctly infers endpoints and executes
+        across all 10 open-domain schemas without errors.
+        """
+        suite = registry.get("toolbench_suite")
+        assert suite is not None
+
+        tasks = get_toolbench_tasks()
+        assert len(tasks) == 10
+
+        expected_endpoints = {
+            "TOOL01": "/api/v1/weather",
+            "TOOL02": "/api/v1/currency",
+            "TOOL03": "/api/v1/search",
+            "TOOL04": "/api/v1/geo",
+            "TOOL05": "/api/v1/calendar",
+            "TOOL06": "/api/v1/units",
+            "TOOL07": "/api/v1/flight",
+            "TOOL08": "/api/v1/restaurant",
+            "TOOL09": "/api/v1/stock",
+            "TOOL10": "/api/v1/wiki",
+        }
+
+        for t in tasks:
+            res = suite.execute(**t.input_data)
+            assert res["status_code"] == 200, f"Task {t.task_id} failed with status {res.get('status_code')}: {res.get('error')}"
+            assert res["endpoint"] == expected_endpoints[t.task_id]
+            assert "data" in res
+            assert res["latency_ms"] >= 0.0
+
+    def test_langgraph_and_autogen_toolbench_execution(self, mock_settings):
+        """Validates that LangGraph and AutoGen execute on ToolBench tasks."""
+        for tid in ["TOOL03", "TOOL08"]:
+            task = get_task_by_id(tid)
+            assert task is not None
+
+            for fw in ["langgraph", "autogen"]:
+                adapter = get_adapter(fw, settings=mock_settings)
+                res = adapter.run_task(task, repetition=1)
+                assert res.success is True
+                assert res.framework_name == fw
+                assert res.policy_violations == 0

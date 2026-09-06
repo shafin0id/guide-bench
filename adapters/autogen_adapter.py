@@ -88,6 +88,8 @@ class AutoGenAdapter(BaseFrameworkAdapter):
                 )
                 if isinstance(res, dict):
                     accumulated_findings.update(res)
+                    if "data" in res and isinstance(res["data"], dict):
+                        accumulated_findings.update(res["data"])
                     if "target_fact" in res and isinstance(res["target_fact"], dict):
                         accumulated_findings.update(res["target_fact"])
                 if "records" in res and res["records"]:

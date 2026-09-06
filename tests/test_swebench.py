@@ -131,3 +131,53 @@ class TestSWEBench:
         assert result.success is True
         assert result.framework_name == "crewai"
         assert result.canonical_state_hash is not None
+
+    def test_corrupt_patch_rejection_and_integrity(self, codebase_env):
+        """
+        Validates that MockCodebaseEnvironment rejects corrupted diff patches
+        lacking unified diff headers or hunk markers, reporting structured errors.
+        """
+        corrupted_diff = "corrupted diff content without unified headers"
+        res = codebase_env.apply_patch(diff=corrupted_diff, file_path="core/engine.py")
+
+        assert res["status"] == "PATCH_INTEGRITY_ERROR"
+        assert res["success"] is False
+        assert res["patch_applied"] is False
+        assert res["patch_integrity"] is False
+        assert res["format_drift"] is True
+        assert "Corrupt patch" in res.get("error", "")
+
+    def test_codebase_environment_convenience_methods(self, codebase_env):
+        """Validates all convenience wrapper methods on MockCodebaseEnvironment."""
+        # 1. parse_ast
+        ast_res = codebase_env.parse_ast("def foo(): return 1\n")
+        assert ast_res["valid"] is True
+        assert "foo" in ast_res["functions"]
+
+        # 2. apply_patch
+        valid_patch = "--- a/foo.py\n+++ b/foo.py\n@@ -1 +1 @@\n-1\n+2\n"
+        patch_res = codebase_env.apply_patch(diff=valid_patch)
+        assert patch_res["success"] is True
+        assert patch_res["patch_integrity"] is True
+
+        # 3. run_tests
+        test_res = codebase_env.run_tests()
+        assert test_res["tests_pass"] is True
+
+        # 4. canonicalize_state
+        canon_res = codebase_env.canonicalize_state({"key": "val"})
+        assert canon_res["rfc8785_verified"] is True
+        assert len(canon_res["canonical_hash"]) == 64
+
+    def test_langgraph_and_autogen_swebench_execution(self, mock_settings):
+        """Validates that LangGraph and AutoGen adapters execute on SWE-bench Lite tasks."""
+        for tid in ["SWE03", "SWE05"]:
+            task = get_task_by_id(tid)
+            assert task is not None
+
+            for fw in ["langgraph", "autogen"]:
+                adapter = get_adapter(fw, settings=mock_settings)
+                res = adapter.run_task(task, repetition=1)
+                assert res.success is True
+                assert res.framework_name == fw
+                assert res.policy_violations == 0

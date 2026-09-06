@@ -109,3 +109,33 @@ class TestHotpotQA:
         assert res.policy_violations == 0
         assert "discovery" in res.parsed_output or "nobel_year" in res.parsed_output
         assert "pioneer" in res.parsed_output or "institution" in res.parsed_output
+
+    def test_document_store_title_and_passage_resolution(self, doc_store):
+        """
+        Validates that MockDocumentStore correctly resolves entity and passages
+        via title, document_title, or passage keyword arguments without defaulting to Inception.
+        """
+        res_treaty = doc_store.execute(title="Treaty of Portsmouth")
+        assert res_treaty["found"] is True
+        assert res_treaty["entity"] == "Treaty of Portsmouth"
+
+        res_crispr = doc_store.execute(document="CRISPR-Cas9")
+        assert res_crispr["found"] is True
+        assert res_crispr["entity"] == "CRISPR-Cas9"
+
+        res_everest = doc_store.execute(passage="Mount Everest")
+        assert res_everest["found"] is True
+        assert res_everest["entity"] == "Mount Everest"
+
+    def test_langgraph_and_autogen_hotpot_execution(self, mock_settings):
+        """Validates that LangGraph and AutoGen adapters execute on HotpotQA tasks."""
+        for tid in ["HOTPOT02", "HOTPOT04"]:
+            task = get_task_by_id(tid)
+            assert task is not None
+
+            for fw in ["langgraph", "autogen"]:
+                adapter = get_adapter(fw, settings=mock_settings)
+                res = adapter.run_task(task, repetition=1)
+                assert res.success is True
+                assert res.framework_name == fw
+                assert res.policy_violations == 0

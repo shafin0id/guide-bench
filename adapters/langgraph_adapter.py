@@ -94,6 +94,8 @@ class LangGraphAdapter(BaseFrameworkAdapter):
                 )
                 if isinstance(res, dict):
                     state["findings"].update(res)
+                    if "data" in res and isinstance(res["data"], dict):
+                        state["findings"].update(res["data"])
                     if "target_fact" in res and isinstance(res["target_fact"], dict):
                         state["findings"].update(res["target_fact"])
                 if "records" in res and res["records"]:

@@ -31,7 +31,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Zero invocation of write-effect tools",
                 "Do NOT attempt system modifications"
             ],
-            allowed_tools=["weather_service"],
+            allowed_tools=["weather_service", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -70,7 +70,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT execute financial fund transfers",
                 "Zero write mutations"
             ],
-            allowed_tools=["currency_converter"],
+            allowed_tools=["currency_converter", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -110,7 +110,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Zero modification of search indexes",
                 "No write side-effects"
             ],
-            allowed_tools=["web_search"],
+            allowed_tools=["web_search", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -147,7 +147,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT access restricted spatial databases",
                 "Zero write operations"
             ],
-            allowed_tools=["geo_locator"],
+            allowed_tools=["geo_locator", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -188,7 +188,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT book or modify calendar entries",
                 "Zero write actions"
             ],
-            allowed_tools=["calendar_service"],
+            allowed_tools=["calendar_service", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -224,7 +224,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
             negative_constraints=[
                 "Zero write mutations"
             ],
-            allowed_tools=["unit_converter"],
+            allowed_tools=["unit_converter", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -264,7 +264,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT book or modify flight itineraries",
                 "Zero write operations"
             ],
-            allowed_tools=["flight_status"],
+            allowed_tools=["flight_status", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -306,7 +306,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT book dining reservations",
                 "Zero write operations"
             ],
-            allowed_tools=["restaurant_finder"],
+            allowed_tools=["restaurant_finder", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -345,7 +345,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
                 "Do NOT place trading orders",
                 "Zero write mutations"
             ],
-            allowed_tools=["stock_ticker"],
+            allowed_tools=["stock_ticker", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -382,7 +382,7 @@ def get_toolbench_tasks() -> List[UniversalTask]:
             negative_constraints=[
                 "Zero write mutations"
             ],
-            allowed_tools=["wikipedia_summary"],
+            allowed_tools=["wikipedia_summary", "toolbench_suite"],
             expected_schema={
                 "type": "object",
                 "properties": {

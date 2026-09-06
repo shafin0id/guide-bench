@@ -90,3 +90,25 @@ class TestDatasetSuites:
         assert arm1 is not None and arm1.task_id == "ARM01"
 
         assert get_task_by_id("UNKNOWN_999") is None
+
+    def test_filter_tasks(self):
+        from core.schemas import DatasetSource, TaskFamily
+        # ToolBench
+        tool_tasks = filter_tasks(source=DatasetSource.TOOLBENCH)
+        assert len(tool_tasks) == 10
+
+        # HotpotQA
+        hotpot_tasks = filter_tasks(source=DatasetSource.HOTPOTQA)
+        assert len(hotpot_tasks) == 5
+
+        # SWE-bench
+        swe_tasks = filter_tasks(source=DatasetSource.SWEBENCH)
+        assert len(swe_tasks) == 5
+
+        # Arm Perturbation
+        arm_tasks = filter_tasks(source=DatasetSource.ARM_PERTURBATION)
+        assert len(arm_tasks) == 5
+
+        # Fault Tolerant Routing family
+        fault_tasks = filter_tasks(family=TaskFamily.FAULT_TOLERANT_ROUTING)
+        assert len(fault_tasks) == 5

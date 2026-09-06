@@ -490,25 +490,26 @@ class MockWebSearch(BaseSandboxedTool):
             sensitivity_level="PUBLIC"
         )
 
-    def execute(self, query: str, limit: int = 5, **kwargs: Any) -> Dict[str, Any]:
-        q_lower = query.lower()
+    def execute(self, query: Optional[str] = None, limit: int = 5, **kwargs: Any) -> Dict[str, Any]:
+        target_query = query or kwargs.get("q") or kwargs.get("search_query") or kwargs.get("keyword") or "technology"
+        q_lower = str(target_query).lower()
         items = []
         for k, v in self.SEARCH_SNIPPETS.items():
             if k in q_lower:
                 items.extend(v)
         if not items:
             items = [{
-                "title": f"Results for '{query}'",
-                "snippet": f"Verified public factual information answering query: {query}",
-                "url": f"https://example.org/search?q={query.replace(' ', '+')}"
+                "title": f"Results for '{target_query}'",
+                "snippet": f"Verified public factual information answering query: {target_query}",
+                "url": f"https://example.org/search?q={str(target_query).replace(' ', '+')}"
             }]
         res = {
-            "query": query,
+            "query": target_query,
             "returned_count": len(items[:limit]),
             "results": items[:limit],
             "status": "SUCCESS"
         }
-        self.log_invocation({"query": query, "limit": limit}, res)
+        self.log_invocation({"query": target_query, "limit": limit}, res)
         return res
 
     def to_openai_function_spec(self) -> Dict[str, Any]:
@@ -1235,7 +1236,17 @@ class MockKnowledgeGraphStore(BaseSandboxedTool):
         )
 
     def execute(self, entity: Optional[str] = None, initial_entity: Optional[str] = None, hop_depth: int = 1, max_hops: int = 1, **kwargs: Any) -> Dict[str, Any]:
-        target_name = entity or initial_entity or kwargs.get("query") or "Inception"
+        target_name = (
+            entity
+            or initial_entity
+            or kwargs.get("title")
+            or kwargs.get("document_title")
+            or kwargs.get("document")
+            or kwargs.get("topic")
+            or kwargs.get("passage")
+            or kwargs.get("query")
+            or "Inception"
+        )
         key = str(target_name).strip().lower()
         record = self.GRAPH.get(key)
         if not record:
@@ -1405,17 +1416,29 @@ class MockCodeWorkspace(BaseSandboxedTool):
                 res = {"status": "ERROR", "valid_syntax": False, "valid": False, "error": f"SyntaxError: {e}"}
 
         elif act == "apply_patch":
-            patch_text = diff or "--- a/core.py\n+++ b/core.py\n@@ -1,3 +1,3 @@\n-def fix(): pass\n+def fix(): return True"
-            has_hunk = "@@" in patch_text
-            res = {
-                "status": "SUCCESS",
-                "success": True,
-                "file_path": file_path or "core/engine.py",
-                "patch_applied": True,
-                "patch_integrity": has_hunk,
-                "format_drift": False,
-                "lines_modified": 4
-            }
+            patch_text = diff or kwargs.get("patch") or "--- a/core.py\n+++ b/core.py\n@@ -1,3 +1,3 @@\n-def fix(): pass\n+def fix(): return True"
+            has_hunk = "@@" in patch_text and ("---" in patch_text or "+++" in patch_text)
+            if not has_hunk:
+                res = {
+                    "status": "PATCH_INTEGRITY_ERROR",
+                    "success": False,
+                    "file_path": file_path or "core/engine.py",
+                    "patch_applied": False,
+                    "patch_integrity": False,
+                    "format_drift": True,
+                    "lines_modified": 0,
+                    "error": "Corrupt patch: missing unified diff headers (---/+++) or hunk boundaries (@@)"
+                }
+            else:
+                res = {
+                    "status": "SUCCESS",
+                    "success": True,
+                    "file_path": file_path or "core/engine.py",
+                    "patch_applied": True,
+                    "patch_integrity": True,
+                    "format_drift": False,
+                    "lines_modified": 4
+                }
 
         elif act == "run_tests":
             res = {
@@ -1449,6 +1472,22 @@ class MockCodeWorkspace(BaseSandboxedTool):
 
         self.log_invocation({"action": action, "file_path": file_path, "test_target": test_target}, res)
         return res
+
+    def parse_ast(self, code: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience method for AST parsing and syntax normalization."""
+        return self.execute(action="parse_ast", code=code, **kwargs)
+
+    def apply_patch(self, diff: Optional[str] = None, file_path: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience method for unified diff application and patch integrity checking."""
+        return self.execute(action="apply_patch", diff=diff, file_path=file_path, **kwargs)
+
+    def run_tests(self, test_target: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience method for unit test execution."""
+        return self.execute(action="run_tests", test_target=test_target, **kwargs)
+
+    def canonicalize_state(self, payload: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience method for RFC 8785 state canonicalization."""
+        return self.execute(action="canonicalize_state", payload=payload, **kwargs)
 
     def to_openai_function_spec(self) -> Dict[str, Any]:
         return {
@@ -1551,6 +1590,39 @@ class MockToolBenchSuite(BaseSandboxedTool):
     def set_tools(self, tools: Dict[str, BaseSandboxedTool]) -> None:
         self._tools = tools
 
+    def _infer_endpoint(self, params: Dict[str, Any]) -> str:
+        """Infers REST endpoint from provided parameter keys."""
+        p_keys = set(params.keys())
+        if p_keys & {"city", "temperature", "weather"}:
+            if p_keys & {"cuisine", "min_rating", "restaurant"}:
+                return "/api/v1/restaurant"
+            return "/api/v1/weather"
+        if p_keys & {"from_currency", "to_currency", "exchange_rate"}:
+            return "/api/v1/currency"
+        if p_keys & {"flight_number", "flight", "carrier"}:
+            return "/api/v1/flight"
+        if p_keys & {"ticker", "symbol", "stock"}:
+            return "/api/v1/stock"
+        if p_keys & {"location_name", "address", "latitude", "longitude"}:
+            return "/api/v1/geo"
+        if p_keys & {"user_id", "calendar", "free_slots"}:
+            return "/api/v1/calendar"
+        if p_keys & {"cuisine", "min_rating", "restaurant"}:
+            return "/api/v1/restaurant"
+        if p_keys & {"category", "from_unit", "to_unit"}:
+            return "/api/v1/units"
+        if p_keys & {"title", "wikipedia", "wiki", "pageid"}:
+            return "/api/v1/wiki"
+        if p_keys & {"from_timezone", "to_timezone", "timezone"}:
+            return "/api/v1/timezone"
+        if p_keys & {"country_code", "holiday"}:
+            return "/api/v1/holiday"
+        if p_keys & {"source_language", "target_language", "translation"}:
+            return "/api/v1/translate"
+        if p_keys & {"query", "q", "search"}:
+            return "/api/v1/search"
+        return "/api/v1/search"
+
     def simulate_rest_call(
         self,
         endpoint: str,
@@ -1572,7 +1644,9 @@ class MockToolBenchSuite(BaseSandboxedTool):
         call_args = dict(params or {})
         if body:
             call_args.update(body)
-        call_args.update(kwargs)
+        for k, v in kwargs.items():
+            if k not in ("endpoint", "path", "method", "headers", "body"):
+                call_args[k] = v
 
         if not tool_name or tool_name not in self._tools:
             return {
@@ -1587,7 +1661,7 @@ class MockToolBenchSuite(BaseSandboxedTool):
         tool_res = tool.execute(**call_args)
         latency_ms = (time.perf_counter() - start_t) * 1000.0
 
-        return {
+        res: Dict[str, Any] = {
             "status_code": 200,
             "headers": {"Content-Type": "application/json", "X-Simulation-Engine": "ToolBench-v1.0"},
             "endpoint": endpoint,
@@ -1595,10 +1669,25 @@ class MockToolBenchSuite(BaseSandboxedTool):
             "data": tool_res,
             "latency_ms": round(latency_ms, 2)
         }
+        if isinstance(tool_res, dict):
+            for k, v in tool_res.items():
+                if k not in res:
+                    res[k] = v
+        self.log_invocation({"endpoint": endpoint, "method": method, "params": call_args}, res)
+        return res
 
-    def execute(self, endpoint: Optional[str] = None, method: str = "GET", params: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
-        target_ep = endpoint or kwargs.get("path") or "/api/v1/search"
-        p = params or kwargs
+    def execute(
+        self,
+        endpoint: Optional[str] = None,
+        method: str = "GET",
+        params: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        p = dict(params or {})
+        for k, v in kwargs.items():
+            if k not in ("endpoint", "path", "method", "headers", "body"):
+                p[k] = v
+        target_ep = endpoint or kwargs.get("path") or kwargs.get("endpoint") or self._infer_endpoint(p)
         return self.simulate_rest_call(endpoint=target_ep, method=method, params=p)
 
     def to_openai_function_spec(self) -> Dict[str, Any]:

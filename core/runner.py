@@ -3,9 +3,9 @@ Benchmark Matrix Runner & Orchestrator.
 
 Coordinates execution across:
 Frameworks (4: GUIDE, CrewAI, LangGraph, AutoGen)
-x Tasks (40 total: 18 Enterprise, 12 InjecAgent, 10 GAIA)
+x Tasks (60 total: 18 Enterprise, 12 InjecAgent, 10 GAIA, 10 ToolBench, 5 HotpotQA, 5 SWE-bench Lite)
 x Repetitions (5)
-= 800 Formal Execution Runs.
+= 1,200 Formal Execution Runs (plus dynamic arm perturbation evaluation suite).
 
 Enforces randomized execution ordering to prevent provider caching bias.
 Streams real-time execution results into an append-only JSONL file and generates manifests.
@@ -239,7 +239,7 @@ def main() -> None:
     settings_kwargs = {
         "default_repetitions": args.repetitions,
         "mock_mode": args.mock,
-        "arm_perturbation": args.arm_perturbation,
+        "arm_perturbation": bool(args.arm_perturbation or args.suite in ("arm_perturbation", "arm", "perturbation")),
         "output_dir": Path(args.output_dir)
     }
     if args.model:

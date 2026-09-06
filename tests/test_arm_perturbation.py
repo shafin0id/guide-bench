@@ -89,3 +89,23 @@ class TestArmPerturbation:
         if result.regret is not None:
             # Without perturbation, regret remains flat or bounded
             assert result.regret <= 1.0
+
+    def test_all_baselines_linear_regret_under_perturbation(self, perturbed_settings):
+        """
+        Validates that all un-adapted static baselines (CrewAI, LangGraph, AutoGen)
+        fail arm perturbation tasks due to lack of dynamic Bayesian adaptation,
+        accumulating linear regret.
+        """
+        for tid in ["ARM01", "ARM03"]:
+            task = get_task_by_id(tid)
+            assert task is not None
+
+            for fw in ["crewai", "langgraph", "autogen"]:
+                adapter = get_adapter(fw, settings=perturbed_settings)
+                result = adapter.run_task(task, repetition=1)
+
+                assert result.success is False
+                assert result.regret is not None
+                assert result.regret > 0.0
+                assert result.parsed_output.get("sublinear_regret") is False
+                assert result.parsed_output.get("logarithmic_regret_verified") is False

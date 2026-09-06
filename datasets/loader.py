@@ -91,12 +91,13 @@ def get_task_by_id(task_id: str) -> Optional[UniversalTask]:
 def filter_tasks(
     source: Optional[DatasetSource] = None,
     family: Optional[TaskFamily] = None,
-    complexity: Optional[ComplexityTier] = None
+    complexity: Optional[ComplexityTier] = None,
+    include_arm_perturbation: bool = True
 ) -> List[UniversalTask]:
     """Filters the universal task repository by metadata attributes."""
-    tasks = get_all_tasks()
+    pool = (get_all_tasks() + get_arm_perturbation_tasks()) if include_arm_perturbation else get_all_tasks()
     filtered = []
-    for t in tasks:
+    for t in pool:
         if source and t.dataset_source != source:
             continue
         if family and t.family != family:

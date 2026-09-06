@@ -228,6 +228,8 @@ class GUIDEAdapter(BaseFrameworkAdapter):
                         # Store un-duplicated raw findings for rubric evaluation
                         if isinstance(tool_result, dict):
                             raw_findings.update(tool_result)
+                            if "data" in tool_result and isinstance(tool_result["data"], dict):
+                                raw_findings.update(tool_result["data"])
                             if "target_fact" in tool_result and isinstance(tool_result["target_fact"], dict):
                                 raw_findings.update(tool_result["target_fact"])
                             if "records" in tool_result and tool_result["records"]:
