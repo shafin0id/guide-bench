@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guide-bench"
+version = "1.0.0"
+description = "Universal Multi-Agent Systems Benchmarking Suite and Evaluation Harness"
+authors = [{ name = "Shafin Ahmad", email = "shafin@users.noreply.github.com" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "pydantic>=2.7.0",
+    "litellm>=1.40.0",
+    "scipy>=1.12.0",
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "tabulate>=0.9.0",
+    "cryptography>=42.0.0",
+    "typing-extensions>=4.10.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0"
+]
+frameworks = [
+    "crewai>=0.41.0",
+    "langgraph>=0.1.0",
+    "pyautogen>=0.2.27"
+]
+all = [
+    "guide-bench[dev,frameworks]"
+]
+
+[project.scripts]
+mas-bench = "core.runner:main"
+guide-bench = "core.runner:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
