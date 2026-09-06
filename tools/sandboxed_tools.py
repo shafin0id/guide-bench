@@ -11,6 +11,7 @@ Implements realistic enterprise tool mocks accessed identically by all framework
 import ast
 import hashlib
 import json
+import time
 from typing import Any, Dict, List, Optional
 from tools.base import BaseSandboxedTool
 
@@ -866,6 +867,217 @@ class MockTranslationService(BaseSandboxedTool):
         }
 
 
+class MockFlightStatus(BaseSandboxedTool):
+    """Simulated public commercial flight status and schedule tracking API."""
+
+    FLIGHT_DATA = {
+        "ua240": {
+            "flight_number": "UA240",
+            "carrier": "United Airlines",
+            "origin": "SFO",
+            "destination": "JFK",
+            "status": "ON_TIME",
+            "scheduled_departure": "08:30",
+            "actual_departure": "08:32",
+            "scheduled_arrival": "17:05",
+            "estimated_arrival": "17:00",
+            "departure_gate": "G4",
+            "arrival_gate": "B22",
+            "delay_minutes": 0
+        },
+        "ba178": {
+            "flight_number": "BA178",
+            "carrier": "British Airways",
+            "origin": "JFK",
+            "destination": "LHR",
+            "status": "DELAYED",
+            "scheduled_departure": "19:00",
+            "actual_departure": "19:45",
+            "scheduled_arrival": "06:55",
+            "estimated_arrival": "07:35",
+            "departure_gate": "A12",
+            "arrival_gate": "T5-B34",
+            "delay_minutes": 40
+        }
+    }
+
+    def __init__(self):
+        super().__init__(
+            name="flight_status",
+            description="Real-time commercial flight tracker for schedules, gates, delays, and flight status.",
+            resource_class="flight_api",
+            is_write_effect=False,
+            sensitivity_level="PUBLIC"
+        )
+
+    def execute(self, flight_number: Optional[str] = None, flight: Optional[str] = None, date: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        target = flight_number or flight or kwargs.get("flight_no") or "UA240"
+        key = str(target).strip().lower()
+        base = self.FLIGHT_DATA.get(key, {
+            "flight_number": str(target).upper(),
+            "carrier": "Global Air",
+            "origin": "SFO",
+            "destination": "JFK",
+            "status": "ON_TIME",
+            "scheduled_departure": "08:30",
+            "actual_departure": "08:30",
+            "scheduled_arrival": "17:05",
+            "estimated_arrival": "17:05",
+            "departure_gate": "G1",
+            "arrival_gate": "A1",
+            "delay_minutes": 0
+        })
+        res = dict(base)
+        res["date"] = date or "2026-09-06"
+        res["status_code"] = "SUCCESS"
+        self.log_invocation({"flight_number": str(target), "date": date}, res)
+        return res
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "flight_status",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "flight_number": {"type": "string", "description": "IATA flight identifier (e.g. UA240, BA178)"},
+                        "date": {"type": "string", "description": "Optional flight date (YYYY-MM-DD)"}
+                    },
+                    "required": ["flight_number"]
+                }
+            }
+        }
+
+
+class MockRestaurantFinder(BaseSandboxedTool):
+    """Simulated public dining guide and restaurant discovery API."""
+
+    RESTAURANTS_BY_CITY = {
+        "rome": [
+            {"name": "Trattoria Da Enzo", "cuisine": "Italian", "rating": 4.8, "price_tier": "$$", "address": "Via dei Vascellari 54", "reservations_available": True},
+            {"name": "Roscioli Salumeria", "cuisine": "Italian", "rating": 4.7, "price_tier": "$$$", "address": "Via dei Giubbonari 21", "reservations_available": False}
+        ],
+        "tokyo": [
+            {"name": "Sukiyabashi Jiro", "cuisine": "Japanese", "rating": 4.9, "price_tier": "$$$$", "address": "Ginza, Chuo City", "reservations_available": False},
+            {"name": "Afuri Ramen", "cuisine": "Japanese", "rating": 4.6, "price_tier": "$", "address": "Ebisu, Shibuya", "reservations_available": True}
+        ],
+        "paris": [
+            {"name": "Le Comptoir du Relais", "cuisine": "French", "rating": 4.7, "price_tier": "$$$", "address": "9 Carrefour de l'Odéon", "reservations_available": True}
+        ]
+    }
+
+    def __init__(self):
+        super().__init__(
+            name="restaurant_finder",
+            description="Public dining directory searching restaurants by city, cuisine, and rating.",
+            resource_class="dining_api",
+            is_write_effect=False,
+            sensitivity_level="PUBLIC"
+        )
+
+    def execute(self, city: str = "Rome", cuisine: Optional[str] = None, min_rating: float = 4.0, **kwargs: Any) -> Dict[str, Any]:
+        c_key = str(city).strip().lower()
+        items = self.RESTAURANTS_BY_CITY.get(c_key, [
+            {"name": f"Bistro {city.title()}", "cuisine": cuisine or "Continental", "rating": 4.5, "price_tier": "$$", "address": f"100 Main St, {city.title()}", "reservations_available": True}
+        ])
+        if cuisine:
+            filtered = [r for r in items if r["cuisine"].lower() == str(cuisine).lower()]
+            if filtered:
+                items = filtered
+        items = [r for r in items if float(r.get("rating", 0)) >= float(min_rating)]
+        res = {
+            "city": city.title(),
+            "cuisine": cuisine or "All",
+            "total_found": len(items),
+            "restaurants": items,
+            "top_pick": items[0]["name"] if items else None,
+            "status": "SUCCESS"
+        }
+        self.log_invocation({"city": city, "cuisine": cuisine, "min_rating": min_rating}, res)
+        return res
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "restaurant_finder",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string", "description": "City name to search (e.g. Rome, Tokyo, Paris)"},
+                        "cuisine": {"type": "string", "description": "Cuisine type (e.g. Italian, Japanese)"},
+                        "min_rating": {"type": "number", "description": "Minimum user rating (e.g. 4.0)"}
+                    },
+                    "required": ["city"]
+                }
+            }
+        }
+
+
+class MockWikipediaSummary(BaseSandboxedTool):
+    """Simulated public encyclopedic Wikipedia article summary API."""
+
+    SUMMARIES = {
+        "alan turing": {
+            "title": "Alan Turing",
+            "pageid": 12345,
+            "extract": "Alan Mathison Turing OBE FRS was an English mathematician, computer scientist, logician, cryptanalyst, philosopher, and theoretical biologist.",
+            "url": "https://en.wikipedia.org/wiki/Alan_Turing",
+            "word_count": 1420
+        },
+        "artificial intelligence": {
+            "title": "Artificial Intelligence",
+            "pageid": 67890,
+            "extract": "Artificial intelligence is the intelligence of machines or software, as opposed to the intelligence of living beings, primarily of humans.",
+            "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+            "word_count": 2850
+        }
+    }
+
+    def __init__(self):
+        super().__init__(
+            name="wikipedia_summary",
+            description="Wikipedia encyclopedic summary lookup retrieving article abstracts and URLs.",
+            resource_class="wiki_api",
+            is_write_effect=False,
+            sensitivity_level="PUBLIC"
+        )
+
+    def execute(self, title: Optional[str] = None, topic: Optional[str] = None, query: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        target = title or topic or query or kwargs.get("article") or "Alan Turing"
+        key = str(target).strip().lower()
+        base = self.SUMMARIES.get(key, {
+            "title": str(target).title(),
+            "pageid": 99999,
+            "extract": f"{str(target).title()} is a subject documented in public encyclopedic records.",
+            "url": f"https://en.wikipedia.org/wiki/{str(target).replace(' ', '_')}",
+            "word_count": 500
+        })
+        res = dict(base)
+        res["status"] = "SUCCESS"
+        self.log_invocation({"title": str(target)}, res)
+        return res
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "wikipedia_summary",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Wikipedia article title"}
+                    },
+                    "required": ["title"]
+                }
+            }
+        }
+
+
 class MockKnowledgeGraphStore(BaseSandboxedTool):
     """
     Simulated multi-hop encyclopedic knowledge graph store.
@@ -1095,6 +1307,40 @@ class MockKnowledgeGraphStore(BaseSandboxedTool):
         }
 
 
+class MockDocumentStore(MockKnowledgeGraphStore):
+    """
+    Simulated multi-hop document store for HotpotQA benchmarking.
+    Provides passage retrieval, multi-hop document chaining, and citation verification.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.name = "document_store"
+        self.description = "Document store providing multi-hop passage retrieval, document chaining, and citation verification."
+        self.resource_class = "document_store_api"
+
+    def query_document(self, entity_or_title: str, max_hops: int = 3, **kwargs: Any) -> Dict[str, Any]:
+        """Query document store for passages and entities."""
+        return self.execute(entity=entity_or_title, max_hops=max_hops, **kwargs)
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "document_store",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "entity": {"type": "string", "description": "Document title or entity name to retrieve"},
+                        "max_hops": {"type": "integer", "description": "Maximum traversal depth (default 3)"}
+                    },
+                    "required": ["entity"]
+                }
+            }
+        }
+
+
 class MockCodeWorkspace(BaseSandboxedTool):
     """
     Simulated multi-agent software engineering workspace (SWE-bench Lite).
@@ -1230,12 +1476,157 @@ class MockCodeWorkspace(BaseSandboxedTool):
         }
 
 
+class MockCodebaseEnvironment(MockCodeWorkspace):
+    """
+    Sandboxed codebase environment for SWE-bench Lite multi-agent collaboration.
+    Executes AST validation, unified diff patch application, and deterministic RFC 8785 canonicalization.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.name = "codebase_environment"
+        self.description = "Deterministic codebase environment for multi-agent patch application, AST validation, and unit testing."
+        self.resource_class = "code_environment_api"
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "codebase_environment",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["parse_ast", "apply_patch", "run_tests", "canonicalize_state"],
+                            "description": "Codebase operation to perform"
+                        },
+                        "code": {"type": "string", "description": "Source code text for AST parsing"},
+                        "file_path": {"type": "string", "description": "Path to target file"},
+                        "diff": {"type": "string", "description": "Unified diff patch string"},
+                        "test_target": {"type": "string", "description": "Test file or test target identifier"},
+                        "payload": {"type": "object", "description": "Dictionary state to canonicalize under RFC 8785"}
+                    },
+                    "required": ["action"]
+                }
+            }
+        }
+
+
+class MockToolBenchSuite(BaseSandboxedTool):
+    """
+    Unified Open-Domain REST Tool Suite for ToolBench simulation.
+    Dispatches RESTful HTTP requests to sandboxed open-domain mock endpoints:
+    Weather, Currency, Search, Calendar, Geo Lookup, Unit Converter, Flight Status,
+    Restaurant Finder, Stock Ticker, Wikipedia Summary.
+    """
+
+    ENDPOINT_MAP = {
+        "/api/v1/weather": "weather_service",
+        "/api/v1/currency": "currency_converter",
+        "/api/v1/search": "web_search",
+        "/api/v1/geo": "geo_locator",
+        "/api/v1/calendar": "calendar_service",
+        "/api/v1/units": "unit_converter",
+        "/api/v1/flight": "flight_status",
+        "/api/v1/restaurant": "restaurant_finder",
+        "/api/v1/stock": "stock_ticker",
+        "/api/v1/wiki": "wikipedia_summary",
+        "/api/v1/timezone": "timezone_converter",
+        "/api/v1/holiday": "public_holiday",
+        "/api/v1/translate": "translation_service",
+    }
+
+    def __init__(self, tools_dict: Optional[Dict[str, BaseSandboxedTool]] = None):
+        super().__init__(
+            name="toolbench_suite",
+            description="Unified REST tool suite gateway simulating multi-domain open-domain REST APIs.",
+            resource_class="rest_gateway_api",
+            is_write_effect=False,
+            sensitivity_level="PUBLIC"
+        )
+        self._tools = tools_dict or {}
+
+    def set_tools(self, tools: Dict[str, BaseSandboxedTool]) -> None:
+        self._tools = tools
+
+    def simulate_rest_call(
+        self,
+        endpoint: str,
+        method: str = "GET",
+        headers: Optional[Dict[str, str]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        body: Optional[Dict[str, Any]] = None,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Simulates an HTTP REST request with JSON payload formatting and HTTP status codes."""
+        norm_endpoint = endpoint.strip().lower()
+        tool_name = self.ENDPOINT_MAP.get(norm_endpoint)
+        if not tool_name:
+            for ep, tname in self.ENDPOINT_MAP.items():
+                if ep in norm_endpoint or norm_endpoint in ep:
+                    tool_name = tname
+                    break
+
+        call_args = dict(params or {})
+        if body:
+            call_args.update(body)
+        call_args.update(kwargs)
+
+        if not tool_name or tool_name not in self._tools:
+            return {
+                "status_code": 404,
+                "headers": {"Content-Type": "application/json"},
+                "error": f"Endpoint '{endpoint}' not found in ToolBench REST registry",
+                "latency_ms": 0.5
+            }
+
+        tool = self._tools[tool_name]
+        start_t = time.perf_counter()
+        tool_res = tool.execute(**call_args)
+        latency_ms = (time.perf_counter() - start_t) * 1000.0
+
+        return {
+            "status_code": 200,
+            "headers": {"Content-Type": "application/json", "X-Simulation-Engine": "ToolBench-v1.0"},
+            "endpoint": endpoint,
+            "method": method.upper(),
+            "data": tool_res,
+            "latency_ms": round(latency_ms, 2)
+        }
+
+    def execute(self, endpoint: Optional[str] = None, method: str = "GET", params: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
+        target_ep = endpoint or kwargs.get("path") or "/api/v1/search"
+        p = params or kwargs
+        return self.simulate_rest_call(endpoint=target_ep, method=method, params=p)
+
+    def to_openai_function_spec(self) -> Dict[str, Any]:
+        return {
+            "type": "function",
+            "function": {
+                "name": "toolbench_suite",
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "endpoint": {"type": "string", "description": "REST API path (e.g. /api/v1/weather, /api/v1/flight)"},
+                        "method": {"type": "string", "enum": ["GET", "POST"], "description": "HTTP Method"},
+                        "params": {"type": "object", "description": "REST query or body parameters"}
+                    },
+                    "required": ["endpoint"]
+                }
+            }
+        }
+
+
 class ToolRegistry:
     """
     Manages instances of sandboxed tools and coordinates audited execution.
     """
 
     def __init__(self):
+        tb_suite = MockToolBenchSuite()
         self.tools: Dict[str, BaseSandboxedTool] = {
             "procurement_db": MockProcurementDB(),
             "incident_log_store": MockIncidentLogStore(),
@@ -1251,11 +1642,18 @@ class ToolRegistry:
             "unit_converter": MockUnitConverter(),
             "public_holiday": MockPublicHoliday(),
             "translation_service": MockTranslationService(),
+            "flight_status": MockFlightStatus(),
+            "restaurant_finder": MockRestaurantFinder(),
+            "wikipedia_summary": MockWikipediaSummary(),
+            "toolbench_suite": tb_suite,
             # HotpotQA multi-hop chaining store
             "knowledge_graph_store": MockKnowledgeGraphStore(),
+            "document_store": MockDocumentStore(),
             # SWE-bench Lite multi-agent collaboration workspace
             "code_workspace": MockCodeWorkspace(),
+            "codebase_environment": MockCodebaseEnvironment(),
         }
+        tb_suite.set_tools(self.tools)
 
     def get(self, name: str) -> Optional[BaseSandboxedTool]:
         return self.tools.get(name)

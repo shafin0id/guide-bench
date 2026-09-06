@@ -200,6 +200,24 @@ def compute_cumulative_regret(
     return cumulative
 
 
+def compute_total_regret(
+    rewards: List[float],
+    optimal_reward: float = 1.0
+) -> float:
+    """
+    Computes total scalar cumulative regret R_T = sum_{t=1}^T (mu* - r_t).
+
+    Args:
+        rewards: Sequence of realized reward values r_t in [0.0, 1.0].
+        optimal_reward: Maximum attainable theoretical reward mu* (default 1.0).
+
+    Returns:
+        Scalar cumulative regret R_T.
+    """
+    trajectory = compute_cumulative_regret(rewards, optimal_reward)
+    return trajectory[-1] if trajectory else 0.0
+
+
 def fit_regret_scaling(cumulative_regrets: List[float]) -> Dict[str, Any]:
     """
     Fits both logarithmic R(t) ~ a*ln(t) + b and linear R(t) ~ c*t + d models

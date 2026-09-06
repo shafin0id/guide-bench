@@ -107,11 +107,43 @@ class TestToolBench:
         t_res = trans.execute(text="Hello world", source_language="en", target_language="es")
         assert "translated_text" in t_res
 
+        # 11. Flight Status
+        flight = registry.get("flight_status")
+        assert flight is not None
+        fl_res = flight.execute(flight_number="UA240")
+        assert fl_res["flight_number"] == "UA240"
+        assert fl_res["status"] == "ON_TIME"
+        assert "departure_gate" in fl_res
+
+        # 12. Restaurant Finder
+        rest = registry.get("restaurant_finder")
+        assert rest is not None
+        r_res = rest.execute(city="Rome", cuisine="Italian", min_rating=4.5)
+        assert r_res["city"] == "Rome"
+        assert r_res["top_pick"] == "Trattoria Da Enzo"
+        assert len(r_res["restaurants"]) > 0
+
+        # 13. Wikipedia Summary
+        wiki = registry.get("wikipedia_summary")
+        assert wiki is not None
+        w_res = wiki.execute(title="Alan Turing")
+        assert w_res["title"] == "Alan Turing"
+        assert "mathematician" in w_res["extract"].lower()
+
+        # 14. MockToolBenchSuite REST simulation
+        suite = registry.get("toolbench_suite")
+        assert suite is not None
+        rest_resp = suite.simulate_rest_call("/api/v1/weather", params={"city": "Tokyo"})
+        assert rest_resp["status_code"] == 200
+        assert rest_resp["data"]["city"] == "Tokyo"
+        assert rest_resp["latency_ms"] >= 0.0
+
     def test_camco_zero_false_positive_rejection(self, registry):
         """
         Validates that CAMCO achieves 0% false-positive rejection on safe,
-        permitted open-domain REST tools with PUBLIC sensitivity.
+        permitted open-domain REST tools with PUBLIC sensitivity, verifying negligible latency.
         """
+        import time
         gate = CAMCOPolicyGate()
         tool_names = [
             "weather_service",
@@ -123,7 +155,11 @@ class TestToolBench:
             "timezone_converter",
             "unit_converter",
             "public_holiday",
-            "translation_service"
+            "translation_service",
+            "flight_status",
+            "restaurant_finder",
+            "wikipedia_summary",
+            "toolbench_suite"
         ]
 
         for name in tool_names:
@@ -142,9 +178,14 @@ class TestToolBench:
                 target_resource="rest_api"
             )
 
+            t0 = time.perf_counter()
             result = gate.evaluate(proposal)
+            overhead_ms = (time.perf_counter() - t0) * 1000.0
+
             assert result.decision == PolicyDecision.ALLOW
             assert not result.is_blocked
+            # Negligible latency overhead (< 1.0 ms)
+            assert overhead_ms < 1.0
 
     def test_guide_adapter_toolbench_execution(self, mock_settings):
         task = get_task_by_id("TOOL01")
@@ -168,3 +209,19 @@ class TestToolBench:
         assert result.success is True
         assert result.framework_name == "crewai"
         assert result.wall_clock_seconds >= 0.0
+
+    def test_guide_adapter_flight_and_wiki_execution(self, mock_settings):
+        task_flight = get_task_by_id("TOOL07")
+        assert task_flight is not None
+        adapter = get_adapter("guide", settings=mock_settings)
+        res_flight = adapter.run_task(task_flight, repetition=1)
+        assert res_flight.success is True
+        assert res_flight.policy_violations == 0
+        assert res_flight.parsed_output.get("status") == "ON_TIME"
+
+        task_wiki = get_task_by_id("TOOL10")
+        assert task_wiki is not None
+        res_wiki = adapter.run_task(task_wiki, repetition=1)
+        assert res_wiki.success is True
+        assert res_wiki.policy_violations == 0
+        assert res_wiki.parsed_output.get("pageid") == 12345

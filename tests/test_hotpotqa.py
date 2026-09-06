@@ -13,7 +13,7 @@ from core.schemas import DatasetSource, TaskFamily
 from datasets.hotpotqa_tasks import get_hotpotqa_tasks
 from datasets.loader import get_task_by_id
 from metrics.statistics import compute_token_scaling_per_hop
-from tools.sandboxed_tools import MockKnowledgeGraphStore
+from tools.sandboxed_tools import MockDocumentStore, MockKnowledgeGraphStore
 
 
 class TestHotpotQA:
@@ -27,6 +27,10 @@ class TestHotpotQA:
     def kg_store(self):
         return MockKnowledgeGraphStore()
 
+    @pytest.fixture
+    def doc_store(self):
+        return MockDocumentStore()
+
     def test_hotpotqa_task_definitions(self):
         tasks = get_hotpotqa_tasks()
         assert len(tasks) == 5
@@ -38,16 +42,22 @@ class TestHotpotQA:
         for t in tasks:
             assert t.family == TaskFamily.MULTI_HOP_RETRIEVAL
             assert t.dataset_source == DatasetSource.HOTPOTQA
-            assert "knowledge_graph_store" in t.allowed_tools
+            assert "knowledge_graph_store" in t.allowed_tools or "document_store" in t.allowed_tools
             assert bool(t.objective)
             assert bool(t.frozen_rubric)
 
-    def test_knowledge_graph_store_multi_hop_querying(self, kg_store):
-        # Query primary entity
+    def test_knowledge_graph_store_multi_hop_querying(self, kg_store, doc_store):
+        # Query primary entity via Knowledge Graph Store
         res = kg_store.execute(entity="Alan Turing", max_hops=3)
         assert res["found"] is True
         assert res["entity"] == "Alan Turing"
         assert len(res["relations"]) > 0
+
+        # Query via Document Store
+        doc_res = doc_store.query_document("Inception", max_hops=3)
+        assert doc_res["found"] is True
+        assert doc_res["entity"] == "Inception"
+        assert len(doc_res["relations"]) > 0
 
         # Multi-hop traversal test
         hop_entities = [h["entity"] for h in res.get("hop_history", [])]

@@ -166,3 +166,85 @@ def export_results_summary(
     # Exclude complex nested columns from CSV
     flat_cols = [c for c in df.columns if c not in ("tool_calls", "parsed_output", "metadata")]
     df[flat_cols].to_csv(out_dir / "benchmark_summary.csv", index=False)
+
+
+def generate_dimension_latex_table(
+    results: List[UniversalExecutionResult],
+    output_path: Optional[Union[str, Path]] = None
+) -> str:
+    """
+    Generates a formal LaTeX table summarizing multi-agent performance across
+    all benchmark evaluation dimensions for IEEE TSC / ACM TOSEM submissions.
+    """
+    if not results:
+        return "% No results available for dimension LaTeX table"
+
+    def _resolve_dim(task_id: str) -> str:
+        tid = str(task_id).upper()
+        if tid.startswith("SEC"):
+            return "InjecAgent (Security)"
+        elif tid.startswith("GAIA"):
+            return "GAIA (Multi-Hop)"
+        elif tid.startswith("TOOL"):
+            return "ToolBench (Open-Domain)"
+        elif tid.startswith("HOTPOT"):
+            return "HotpotQA (Retrieval)"
+        elif tid.startswith("SWE"):
+            return "SWE-bench Lite (Code)"
+        elif tid.startswith("ARM"):
+            return "Arm Perturbation"
+        elif tid.startswith("T"):
+            return "Enterprise Lineage"
+        return "General"
+
+    data = []
+    for r in results:
+        data.append({
+            "dimension": _resolve_dim(r.task_id),
+            "framework": r.framework_name.upper(),
+            "success": 100.0 if r.success else 0.0,
+            "ips": r.intent_fidelity_score * 100.0,
+            "violations": 100.0 if r.policy_violations > 0 else 0.0,
+            "tokens": r.total_tokens
+        })
+    df = pd.DataFrame(data)
+    grouped = df.groupby(["dimension", "framework"])
+
+    latex_lines = [
+        r"\begin{table*}[t]",
+        r"\centering",
+        r"\caption{Empirical Multi-Agent Performance Across Evaluation Dimensions}",
+        r"\label{tab:dimension_results}",
+        r"\resizebox{\textwidth}{!}{%",
+        r"\begin{tabular}{llcccc}",
+        r"\toprule",
+        r"\textbf{Dimension} & \textbf{Framework} & \textbf{Success (\%)} & \textbf{IPS (\%)} & \textbf{Violations (\%)} & \textbf{Mean Tokens} \\",
+        r"\midrule"
+    ]
+
+    for (dim, fw), group in grouped:
+        line = (
+            f"{dim} & \\texttt{{{fw}}} & "
+            f"{group['success'].mean():.1f}\\% & "
+            f"{group['ips'].mean():.1f}\\% & "
+            f"{group['violations'].mean():.1f}\\% & "
+            f"{int(group['tokens'].mean()):,} \\\\"
+        )
+        latex_lines.append(line)
+
+    latex_lines.extend([
+        r"\bottomrule",
+        r"\end{tabular}%",
+        r"}",
+        r"\end{table*}"
+    ])
+
+    latex_output = "\n".join(latex_lines)
+
+    if output_path:
+        out_file = Path(output_path)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(latex_output)
+
+    return latex_output

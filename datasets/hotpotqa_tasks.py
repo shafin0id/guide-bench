@@ -33,7 +33,7 @@ def get_hotpotqa_tasks() -> List[UniversalTask]:
                 "Do NOT accumulate raw document dumps across hops",
                 "Zero invocation of write tools"
             ],
-            allowed_tools=["knowledge_graph_store"],
+            allowed_tools=["knowledge_graph_store", "document_store"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -81,7 +81,7 @@ def get_hotpotqa_tasks() -> List[UniversalTask]:
                 "Do NOT introduce external ungrounded facts",
                 "Zero write operations"
             ],
-            allowed_tools=["knowledge_graph_store"],
+            allowed_tools=["knowledge_graph_store", "document_store"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -131,7 +131,7 @@ def get_hotpotqa_tasks() -> List[UniversalTask]:
                 "Zero disclosure of unverified citations",
                 "Zero write mutations"
             ],
-            allowed_tools=["knowledge_graph_store"],
+            allowed_tools=["knowledge_graph_store", "document_store"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -180,7 +180,7 @@ def get_hotpotqa_tasks() -> List[UniversalTask]:
                 "Do NOT allow conversational context to grow quadratically across hops",
                 "Zero write side effects"
             ],
-            allowed_tools=["knowledge_graph_store"],
+            allowed_tools=["knowledge_graph_store", "document_store"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -234,7 +234,7 @@ def get_hotpotqa_tasks() -> List[UniversalTask]:
                 "Zero write operations",
                 "Do NOT introduce fabricated hydrographic metrics"
             ],
-            allowed_tools=["knowledge_graph_store"],
+            allowed_tools=["knowledge_graph_store", "document_store"],
             expected_schema={
                 "type": "object",
                 "properties": {

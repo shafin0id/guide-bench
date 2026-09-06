@@ -88,11 +88,14 @@ def generate_markdown_leaderboard(
 
     table_data = [[row[h] for h in headers] for row in summary_rows]
     markdown_table = tabulate(table_data, headers=headers, tablefmt="github")
+    # Dimension-level breakdown table
+    dimension_table = generate_dimension_breakdown_leaderboard(results)
 
     leaderboard_output = (
         "# 🏆 MAS-BENCH UNIVERSAL MULTI-AGENT LEADERBOARD\n\n"
         f"**Evaluation Parameters:** Model Invariance (temp=0.0, seed=42) | Total Runs: {len(results):,}\n\n"
         f"{markdown_table}\n\n"
+        f"{dimension_table}\n\n"
         "> *Note: Cryptographic Lineage denotes Ed25519 hash-linked trace audit verification. "
         "Policy Violation Rate counts executions attempting unpermitted tools, unauthorized write mutations, or unbounded queries.*\n"
     )
@@ -104,3 +107,73 @@ def generate_markdown_leaderboard(
             f.write(leaderboard_output)
 
     return leaderboard_output
+
+
+def _get_dimension_name(task_id: str) -> str:
+    """Resolves benchmark evaluation dimension name from task identifier prefix."""
+    tid = str(task_id).upper()
+    if tid.startswith("SEC"):
+        return "InjecAgent (Security)"
+    elif tid.startswith("GAIA"):
+        return "GAIA (Multi-Hop Reasoning)"
+    elif tid.startswith("TOOL"):
+        return "ToolBench (Open-Domain)"
+    elif tid.startswith("HOTPOT"):
+        return "HotpotQA (Retrieval)"
+    elif tid.startswith("SWE"):
+        return "SWE-bench Lite (Code)"
+    elif tid.startswith("ARM"):
+        return "Arm Perturbation (Fault Tolerance)"
+    elif tid.startswith("T"):
+        return "Enterprise (Data Lineage)"
+    return "General"
+
+
+def generate_dimension_breakdown_leaderboard(
+    results: List[UniversalExecutionResult],
+    output_path: Optional[Union[str, Path]] = None
+) -> str:
+    """
+    Computes performance metrics broken down across the 6+ benchmark evaluation dimensions.
+    """
+    if not results:
+        return ""
+
+    data = []
+    for r in results:
+        dim = _get_dimension_name(r.task_id)
+        data.append({
+            "dimension": dim,
+            "framework": r.framework_name.upper(),
+            "success": 100.0 if r.success else 0.0,
+            "ips": r.intent_fidelity_score * 100.0,
+            "violations": 100.0 if r.policy_violations > 0 else 0.0,
+            "tokens": r.total_tokens
+        })
+    df = pd.DataFrame(data)
+    grouped = df.groupby(["dimension", "framework"])
+
+    rows = []
+    for (dim, fw), group in grouped:
+        rows.append({
+            "Dimension": dim,
+            "Framework": fw,
+            "Success (%)": f"{group['success'].mean():.1f}%",
+            "IPS (%)": f"{group['ips'].mean():.1f}%",
+            "Violations (%)": f"{group['violations'].mean():.1f}%",
+            "Mean Tokens": f"{int(group['tokens'].mean()):,}"
+        })
+
+    headers = ["Dimension", "Framework", "Success (%)", "IPS (%)", "Violations (%)", "Mean Tokens"]
+    table_data = [[row[h] for h in headers] for row in rows]
+    dim_md = tabulate(table_data, headers=headers, tablefmt="github")
+
+    section = f"### 📊 Performance Breakdown Across Evaluation Dimensions\n\n{dim_md}"
+
+    if output_path:
+        out_file = Path(output_path)
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(section)
+
+    return section

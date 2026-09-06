@@ -22,7 +22,11 @@ from adapters import get_adapter
 from configs.settings import BenchSettings, get_settings, set_settings
 from core.schemas import UniversalExecutionResult, UniversalTask
 from datasets.loader import get_benchmark_suite, get_task_by_id
-from reporting.export import export_results_summary, generate_latex_table
+from reporting.export import (
+    export_results_summary,
+    generate_dimension_latex_table,
+    generate_latex_table,
+)
 from reporting.leaderboard import generate_markdown_leaderboard
 
 
@@ -271,6 +275,7 @@ def main() -> None:
     if args.generate_reports and results:
         md_table = generate_markdown_leaderboard(results, output_path=settings.output_dir / "leaderboard.md")
         latex_table = generate_latex_table(results, output_path=settings.output_dir / "table_comparison.tex")
+        dim_latex_table = generate_dimension_latex_table(results, output_path=settings.output_dir / "table_dimensions.tex")
         export_results_summary(results, output_dir=settings.output_dir)
         print("\n" + md_table + "\n")
 

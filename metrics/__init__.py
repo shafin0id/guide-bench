@@ -9,8 +9,13 @@ from metrics.scorers import (
 )
 from metrics.statistics import (
     bootstrap_ci_95,
+    compute_canonical_state_hash,
     compute_cohens_kappa,
+    compute_cumulative_regret,
     compute_median_and_iqr,
+    compute_token_scaling_per_hop,
+    compute_total_regret,
+    fit_regret_scaling,
     paired_wilcoxon_test,
 )
 
@@ -22,4 +27,9 @@ __all__ = [
     "bootstrap_ci_95",
     "paired_wilcoxon_test",
     "compute_cohens_kappa",
+    "compute_cumulative_regret",
+    "compute_total_regret",
+    "fit_regret_scaling",
+    "compute_token_scaling_per_hop",
+    "compute_canonical_state_hash",
 ]

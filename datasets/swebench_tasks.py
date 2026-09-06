@@ -31,7 +31,7 @@ def get_swebench_tasks() -> List[UniversalTask]:
                 "Do NOT execute arbitrary un-sandboxed shell scripts",
                 "Zero file system write mutations"
             ],
-            allowed_tools=["code_workspace"],
+            allowed_tools=["code_workspace", "codebase_environment"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -70,7 +70,7 @@ def get_swebench_tasks() -> List[UniversalTask]:
                 "Do NOT emit non-unified diff formats or conversational code snippets",
                 "Zero unhandled patch merge conflicts"
             ],
-            allowed_tools=["code_workspace"],
+            allowed_tools=["code_workspace", "codebase_environment"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -114,7 +114,7 @@ def get_swebench_tasks() -> List[UniversalTask]:
                 "Zero tolerance for key-order non-determinism",
                 "Do NOT alter data types during canonicalization"
             ],
-            allowed_tools=["code_workspace"],
+            allowed_tools=["code_workspace", "codebase_environment"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -153,7 +153,7 @@ def get_swebench_tasks() -> List[UniversalTask]:
                 "Do NOT skip unit test execution",
                 "Zero test assertion regressions"
             ],
-            allowed_tools=["code_workspace"],
+            allowed_tools=["code_workspace", "codebase_environment"],
             expected_schema={
                 "type": "object",
                 "properties": {
@@ -193,7 +193,7 @@ def get_swebench_tasks() -> List[UniversalTask]:
                 "Do NOT modify or weaken test assertions",
                 "Zero unhandled exceptions"
             ],
-            allowed_tools=["code_workspace"],
+            allowed_tools=["code_workspace", "codebase_environment"],
             expected_schema={
                 "type": "object",
                 "properties": {

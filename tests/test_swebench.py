@@ -13,7 +13,7 @@ from core.schemas import DatasetSource, TaskFamily
 from datasets.loader import get_task_by_id
 from datasets.swebench_tasks import get_swebench_tasks
 from metrics.statistics import compute_canonical_state_hash
-from tools.sandboxed_tools import MockCodeWorkspace
+from tools.sandboxed_tools import MockCodebaseEnvironment, MockCodeWorkspace
 
 
 class TestSWEBench:
@@ -27,6 +27,10 @@ class TestSWEBench:
     def workspace(self):
         return MockCodeWorkspace()
 
+    @pytest.fixture
+    def codebase_env(self):
+        return MockCodebaseEnvironment()
+
     def test_swebench_task_definitions(self):
         tasks = get_swebench_tasks()
         assert len(tasks) == 5
@@ -38,9 +42,14 @@ class TestSWEBench:
         for t in tasks:
             assert t.family == TaskFamily.CODE_COLLABORATION
             assert t.dataset_source == DatasetSource.SWEBENCH
-            assert "code_workspace" in t.allowed_tools
+            assert "code_workspace" in t.allowed_tools or "codebase_environment" in t.allowed_tools
             assert bool(t.objective)
             assert bool(t.frozen_rubric)
+
+    def test_codebase_environment_instantiation(self, codebase_env):
+        assert codebase_env.name == "codebase_environment"
+        parsed = codebase_env.execute(action="parse_ast", code="x = 42\n")
+        assert parsed["valid"] is True
 
     def test_code_workspace_ast_parsing(self, workspace):
         # Valid Python code

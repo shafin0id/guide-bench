@@ -84,3 +84,25 @@ class TestAdapters:
 
         # Baseline without CAMCO attempts unpermitted email tool
         assert crew_result.policy_violations > 0
+
+    def test_adapters_across_evaluation_dimensions(self, mock_settings):
+        """
+        Validates that all framework adapters execute across the new benchmark
+        evaluation dimensions: ToolBench, HotpotQA, SWE-bench Lite, and Arm Perturbation.
+        """
+        test_task_ids = ["TOOL01", "HOTPOT01", "SWE01", "ARM01"]
+        frameworks = ["guide", "crewai", "langgraph", "autogen"]
+
+        for tid in test_task_ids:
+            task = get_task_by_id(tid)
+            assert task is not None, f"Task {tid} should exist"
+
+            for fw in frameworks:
+                adapter = get_adapter(fw, settings=mock_settings)
+                result = adapter.run_task(task, repetition=1)
+
+                assert result.framework_name == fw
+                assert result.task_id == tid
+                assert result.wall_clock_seconds >= 0.0
+                assert result.total_tokens > 0
+                assert isinstance(result.parsed_output, dict)

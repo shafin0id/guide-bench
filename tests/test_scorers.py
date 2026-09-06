@@ -14,6 +14,7 @@ from metrics.statistics import (
     bootstrap_ci_95,
     compute_cohens_kappa,
     compute_median_and_iqr,
+    compute_total_regret,
     paired_wilcoxon_test,
 )
 
@@ -173,3 +174,13 @@ class TestStatistics:
         rater_b = ["FAIL", "FAIL", "FAIL", "FAIL"]
         res_div = compute_cohens_kappa(rater_a, rater_b)
         assert res_div["kappa"] <= 0.0
+
+    def test_compute_total_regret(self):
+        rewards = [1.0, 0.8, 0.5, 0.2]
+        r_t = compute_total_regret(rewards, optimal_reward=1.0)
+        assert abs(r_t - 1.5) < 1e-4
+
+        # Zero regret on optimal run
+        assert compute_total_regret([1.0, 1.0, 1.0]) == 0.0
+        # Empty rewards
+        assert compute_total_regret([]) == 0.0

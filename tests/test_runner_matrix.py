@@ -86,3 +86,41 @@ class TestRunnerMatrix:
             output_path=settings.output_dir / "test_wilcoxon.tex"
         )
         assert "Pairwise Comparison" in stat_latex or "GUIDE" in stat_latex
+
+        # Dimension Breakdown LaTeX Table
+        from reporting.export import generate_dimension_latex_table
+        dim_latex = generate_dimension_latex_table(
+            results,
+            output_path=settings.output_dir / "test_dim_table.tex"
+        )
+        assert r"\begin{table*}" in dim_latex
+        assert "Enterprise Lineage" in dim_latex
+        assert (settings.output_dir / "test_dim_table.tex").exists()
+
+    def test_run_matrix_across_all_six_dimensions(self, runner_env):
+        """
+        Validates matrix execution and dimension reporting across all 6 core benchmark suites:
+        Enterprise, InjecAgent, GAIA, ToolBench, HotpotQA, SWE-bench Lite.
+        """
+        runner, settings = runner_env
+        six_dim_tasks = [
+            get_task_by_id("T01"),
+            get_task_by_id("SEC01"),
+            get_task_by_id("GAIA01"),
+            get_task_by_id("TOOL01"),
+            get_task_by_id("HOTPOT01"),
+            get_task_by_id("SWE01")
+        ]
+        assert all(t is not None for t in six_dim_tasks)
+
+        results = runner.run_matrix(
+            framework_names=["guide", "crewai"],
+            tasks=six_dim_tasks,
+            repetitions=1
+        )
+        assert len(results) == 12  # 2 frameworks x 6 tasks x 1 rep
+
+        md_leaderboard = generate_markdown_leaderboard(results)
+        assert "ToolBench" in md_leaderboard
+        assert "HotpotQA" in md_leaderboard
+        assert "SWE-bench" in md_leaderboard
